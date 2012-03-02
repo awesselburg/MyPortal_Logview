@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>de.myportal.logview</groupId>
+	<artifactId>logview</artifactId>
+	<packaging>php</packaging>
+	<name>logview Module</name>
+	<version>1.0-SNAPSHOT</version>
+
+	<properties>
+    	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.varien</groupId>
+			<artifactId>magento</artifactId>
+			<version>1.5.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.phpunit</groupId>
+			<artifactId>phpunit5</artifactId>
+			<version>3.3.9</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>ant-contrib</groupId>
+			<artifactId>ant-contrib</artifactId>
+			<version>1.0b3</version>
+		</dependency>
+	</dependencies>
+
+	<scm>
+	</scm>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.phpmaven</groupId>
+				<artifactId>maven-php-plugin</artifactId>
+				<extensions>true</extensions>
+				<version>1.1</version>
+				<configuration>
+					<compileArgs>-d auto_prepend_file=validator_autoload.php</compileArgs>
+					<ignoreValidate>true</ignoreValidate>
+				</configuration>
+			</plugin>
+
+			<!-- ant codesniffer task 
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>php-codesniffer</id>
+						<phase>package</phase>
+						<configuration>
+							<tasks>
+								<taskdef resource="net/sf/antcontrib/antcontrib.properties"
+									classpathref="maven.compile.classpath" />
+								<ant antfile="${basedir}/build.xml">
+									<target name="php.code.sniffer" />
+								</ant>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			-->
+
+			<!-- ant extension deploy task -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>deploy-to-magento</id>
+						<phase>install</phase>
+						<configuration>
+							<tasks>
+								<taskdef resource="net/sf/antcontrib/antlib.xml" classpathref="maven.compile.classpath" />
+								<ant antfile="${basedir}/build.xml">
+									<target name="deploy.to.magento" />
+								</ant>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+				<dependencies>
+					<dependency>
+						<groupId>ant</groupId>
+						<artifactId>ant-jsch</artifactId>
+						<version>1.6.5</version>
+					</dependency>
+					<dependency>
+						<groupId>ant-contrib</groupId>
+						<artifactId>ant-contrib</artifactId>
+						<version>1.0b3</version>
+						<exclusions>
+                            <exclusion>
+                                <groupId>ant</groupId>
+                                <artifactId>ant</artifactId>
+                            </exclusion>
+                        </exclusions>
+					</dependency>
+					<dependency>
+				      <groupId>ant</groupId>
+				      <artifactId>ant-optional</artifactId>
+				      <version>1.5.3-1</version>
+				    </dependency>
+					<!-- see: http://jira.codehaus.org/browse/MANTTASKS-162 -->
+				    <dependency>
+				    	<groupId>org.apache.maven</groupId>
+				    	<artifactId>maven-ant-tasks</artifactId>
+				    	<version>2.1.1</version>
+				    </dependency> 
+				</dependencies>
+			</plugin>
+			
+			<!-- extension assembly -->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.2</version>
+				<configuration>
+					<finalName>${project.artifactId}-${project.version}</finalName>
+					<appendAssemblyId>false</appendAssemblyId>
+					<descriptors>
+						<descriptor>${basedir}/src/main/assembly/config.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<executions>
+					<execution>
+						<id>bundle-project-sources</id>
+						<phase>package</phase>
+						<goals>
+							<goal>attached</goal>
+						</goals>
+					</execution>
+				</executions>
+				<dependencies>
+					<dependency>
+						<groupId>org.phpmaven</groupId>
+						<artifactId>maven-php-plugin</artifactId>
+						<version>1.1</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+		</plugins>
+	</build>
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.phpmaven</groupId>
+				<artifactId>maven-php-plugin</artifactId>
+				<version>1.1</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-report-plugin</artifactId>
+				<version>2.4</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>report-only</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
+	
+	<pluginRepositories>
+		<pluginRepository>
+			<id>central</id>
+			<name>Maven 2 Central Repository</name>
+			<url>http://repo1.maven.org/maven2/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+		</pluginRepository>
+
+		<pluginRepository>
+			<id>release-repo1.php-maven.org</id>
+			<name>PHP-Maven 2 Release Repository</name>
+			<url>http://repo1.php-maven.org/release</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+		</pluginRepository>
+	</pluginRepositories>
+	
+	<repositories>
+		<repository>
+			<id>bloopark-public</id>
+			<name>bloopark systems public repo</name>
+			<url>
+				http://188.40.87.196:8081/content/repositories/releases/
+			</url>
+		</repository>
+		<repository>
+			<id>bloopark-private</id>
+			<name>bloopark systems private repo</name>
+			<url>
+				http://188.40.87.196:8081/content/repositories/releases_private/
+			</url>
+		</repository>
+	</repositories>
+	
+</project>

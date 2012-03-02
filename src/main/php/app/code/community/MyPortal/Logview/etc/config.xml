@@ -1,0 +1,96 @@
+<config>
+    <modules>
+        <MyPortal_Logview>
+            <version>0.1.0</version>
+        </MyPortal_Logview>
+    </modules>
+    <frontend>
+        <translate>
+            <modules>
+                <MyPortal_Logview>
+                    <files>
+                        <default>MyPortal_Logview.csv</default>
+                    </files>
+                </MyPortal_Logview>
+            </modules>
+        </translate>
+        <layout>
+        </layout>
+    </frontend>
+
+    <global>
+
+        <models>
+            <myportal_logview>
+                <class>MyPortal_Logview_Model</class>
+            </myportal_logview>
+        </models>
+
+        <blocks>
+            <myportal_logview>
+                <class>MyPortal_Logview_Block</class>
+            </myportal_logview>
+
+        </blocks>
+
+        <helpers>
+            <myportal_logview>
+                <class>MyPortal_Logview_Helper</class>
+            </myportal_logview>
+        </helpers>
+        <events>
+        </events>
+    </global>
+
+    <admin>
+        <routers>
+            <logview>
+                <use>admin</use>
+                <args>
+                    <module>MyPortal_Logview</module>
+                    <frontName>logview</frontName>
+                </args>
+            </logview>
+        </routers>
+    </admin>
+
+    <adminhtml>
+        <layout>
+            <updates>
+                <logview>
+                    <file>logview.xml</file>
+                </logview>
+            </updates>
+        </layout>
+        <translate>
+            <modules>
+                <MyPortal_Logview>
+                    <files>
+                        <default>MyPortal_Logview.csv</default>
+                    </files>
+                </MyPortal_Logview>
+            </modules>
+        </translate>
+        <menu>
+            <system translate="title" module="adminhtml">
+                <children>
+                    <logview translate="title" module="myportal_logview">
+                        <title>Logview</title>
+                        <sort_order>100</sort_order>
+                        <action>logview/index/enable/type/true</action>
+                    </logview>
+                </children>
+            </system>
+        </menu>
+    </adminhtml>
+
+    <default>
+        <dev>
+            <logview>
+                <reload>20000</reload>
+                <lines>20</lines>
+                <active>1</active>
+            </logview>
+        </dev>
+    </default>
+</config>

@@ -1,0 +1,27 @@
+<div id="logview">
+    <div class="content-buttons form-buttons">
+        <input id="autoreload" type="checkbox"
+               <?php echo $this->getAutoReloadEnabled() == '1' ? 'checked="checked" ' : ' '; ?>onclick="updateAutoReload(this.checked)"/>
+        <label class="normal" for="autoreload"><?php echo $this->__('Auto Reload'); ?></label>
+        <button type="button" onclick="refreshLog()">
+            <span><?php echo $this->__('Refresh'); ?></span>
+        </button>
+    </div>
+    <ul id="logview_tab" class="tabs-horiz">
+        <li>
+            <a id="logview_tab_systems" class="tab-item-link active" title="Systems" href="#">
+                <span><?php echo $this->__('System Log'); ?></span>
+            </a>
+        </li>
+        <li>
+            <a id="logview_tab_exceptions" class="tab-item-link" title="Exceptions" href="#">
+                <span><?php echo $this->__('Exception Log'); ?></span>
+            </a>
+        </li>
+    </ul>
+
+    <div id="logview_tab_content" class="logview_tab_content">
+        <div id="logview_tab_systems_content"></div>
+        <div id="logview_tab_exceptions_content"></div>
+    </div>
+</div>

@@ -1,0 +1,42 @@
+#logview {
+}
+
+.logview_tab_content {
+    color: #293028;
+    padding:5px;
+    font-size: 11px;
+}
+
+.logview_tab_content .item {
+    padding-bottom: 4px;
+}
+
+.logview_tab_content .item .datetime {
+    color: #000aff;
+}
+
+.logview_tab_content .item .err, .logview_tab_content .item .crit {
+    color: #ff0c00;
+}
+
+.logview_tab_content .item .debug {
+    color: #2ed667;
+}
+
+.magento_w, .magento_e {
+    width: 0px;
+}
+
+#logview_tab {
+    margin: 0;
+}
+
+.magento_maximize {
+    right: 24px !important;
+}
+
+.dialog {
+    z-index: 1000 !important;
+}
+
+

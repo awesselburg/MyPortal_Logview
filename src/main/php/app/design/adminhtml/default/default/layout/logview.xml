@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<layout version="0.1.0">
+
+    <default>
+        <reference name="head">
+            <action method="addJs">
+                <script>prototype/window.js</script>
+            </action>
+            <action method="addItem">
+                <type>js_css</type>
+                <name>prototype/windows/themes/default.css</name>
+            </action>
+            <action method="addItem">
+                <type>js_css</type>
+                <name>prototype/windows/themes/magento.css</name>
+            </action>
+            <action method="addItem">
+                <type>js_css</type>
+                <name>prototype/windows/themes/lighting.css</name>
+            </action>
+            <action method="addCss">
+                <name>logview.css</name>
+            </action>
+        </reference>
+        <reference name="before_body_end">
+            <block type="myportal_logview/page_log" name="myportal.log.view" template="logview/view.phtml">
+                <block type="myportal_logview/page_log" name="myportal.log.tabs" template="logview/tabs.phtml"></block>
+            </block>
+        </reference>
+    </default>
+
+</layout>

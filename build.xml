@@ -1,0 +1,1754 @@
+<project
+	name="magento_ant_tasks"
+	xmlns:artifact="antlib:org.apache.maven.artifact.ant"
+	default="  ">
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Ant-Syntax-Definition einbinden -->
+	<taskdef
+		resource="net/sf/antcontrib/antlib.xml" />
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- zu verwendende Properties-Datei definieren, in Abhängigkeit des angemeldeten Benutzers -->
+	<property
+		file="build.${user.name}.properties" />
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Ort der Magento-Source-Dateien definieren (liegen unterhalb ~/.m2/repository/) -->
+	<artifact:dependencies
+		filesetId="maven.magento.source"
+		useScope="runtime">
+		<dependency
+			groupId="com.varien"
+			artifactId="magento"
+			version="${magento.version}" />
+	</artifact:dependencies>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- verwendete POM-Datei definieren -->
+	<artifact:pom
+		id="project.pom"
+		file="pom.xml" />
+
+
+	<!-- ************************************************************************************************************************************ -->
+
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Werte aus der Properties-Datei prüfen (Existenz und Gültigkeit) und ggfs. auf Standard setzen -->
+	<property
+		name="project.basedir"
+		value="${project.pom.basedir}" />
+
+	<property
+		name="build.dir"
+		value="target/" />
+
+	<property
+		name="build.zip.name"
+		value="${project.pom.artifactId}-${project.pom.version}.zip" />
+
+	<propertyregex
+		property="magento.version.base"
+		input="${magento.version}"
+		regexp="1\.[2,3]\..\.."
+		select="3"
+		defaultValue="4" />
+
+	<condition
+		property="magento.url.base.f"
+		value="${magento.url.base}"
+		else="${magento.url.base}/">
+		<matches
+			string="${magento.url.base}"
+			pattern="\/$" />
+	</condition>
+
+	<condition
+		property="magento.url.base.https.f"
+		value="${magento.url.base.https}"
+		else="${magento.url.base.https}/">
+		<matches
+			string="${magento.url.base.https}"
+			pattern="\/$" />
+	</condition>
+
+	<condition
+		property="magento.db.schema.file"
+		value="magento_with_sample_data.sql"
+		else="magento.sql">
+		<equals
+			arg1="${magento.use.sample.data}"
+			arg2="yes" />
+	</condition>
+
+	<condition
+		property="magento.db.url"
+		value="${magento.db.host}:magento.db.port"
+		else="${magento.db.host}">
+		<isset
+			property="${magento.db.port}" />
+	</condition>
+
+	<condition
+		property="magento.install.path"
+		value="${magento.install.root}"
+		else="${local.magento.root}">
+		<isset
+			property="${magento.install.root}" />
+	</condition>
+
+	<condition
+		property="dump.file"
+		value="${dump.file}"
+		else="magento_final.sql">
+		<isset
+			property="${dump.file}" />
+	</condition>
+
+	<condition
+		property="magento.extensions.core"
+		value="">
+		<not>
+			<isset
+				property="${magento.extensions.core}" />
+		</not>
+	</condition>
+
+	<condition
+		property="magento.extensions.community"
+		value="">
+		<not>
+			<isset
+				property="${magento.extensions.community}" />
+		</not>
+	</condition>
+
+	<condition
+		property="symlink.create"
+		value="">
+		<not>
+			<isset
+				property="${symlink.create}" />
+		</not>
+	</condition>
+
+	<condition
+		property="magento.extensions.other"
+		value="">
+		<not>
+			<isset
+				property="${magento.extensions.other}" />
+		</not>
+	</condition>
+
+	<condition
+		property="magento.locale"
+		value="">
+		<not>
+			<isset
+				property="${magento.locale}" />
+		</not>
+	</condition>
+
+	<condition
+		property="magento.theme"
+		value="">
+		<not>
+			<isset
+				property="${magento.theme}" />
+		</not>
+	</condition>
+
+	<condition
+		property="deploy.permission.maxparallel"
+		value="300">
+		<not>
+			<isset
+				property="${deploy.permission.maxparallel}" />
+		</not>
+	</condition>
+
+	<condition
+		property="deploy.permission.files"
+		value="644">
+		<not>
+			<isset
+				property="${deploy.permission.files}" />
+		</not>
+	</condition>
+
+	<condition
+		property="deploy.permission.dirs"
+		value="755">
+		<not>
+			<isset
+				property="${deploy.permission.dirs}" />
+		</not>
+	</condition>
+
+	<condition
+		property="deploy.permission.set"
+		value="0">
+		<not>
+			<isset
+				property="${deploy.permission.set}" />
+		</not>
+	</condition>
+
+	<if>
+		<equals
+			arg1="${magento.install.date}"
+			arg2="" />
+		<then>
+			<tstamp>
+				<format
+					property="magento.install.date.f"
+					pattern="EEE, d MMM yyyy HH:mm:ss Z"
+					locale="en,US" />
+			</tstamp>
+		</then>
+		<else>
+			<property
+				name="magento.install.date.f"
+				value="${magento.install.date}" />
+		</else>
+	</if>
+
+	<if>
+		<equals
+			arg1="${magento.install.date.sql}"
+			arg2="" />
+		<then>
+			<tstamp>
+				<format
+					property="magento.install.date.sql.f"
+					pattern="yyyy-MM-dd HH:mm:ss"
+					locale="en,US" />
+			</tstamp>
+		</then>
+		<else>
+			<property
+				name="magento.install.date.sql.f"
+				value="${magento.install.date.sql}" />
+		</else>
+	</if>
+
+
+	<!-- ************************************************************************************************************************************ -->
+
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Platzhalter-Target, hier können eigene Tasks definiert werden -->
+	<!-- Aufruf dieses Targets erfolgt am Ende des Targets "zap.magento.remote", dazu muss Property "magento.project.functions" = yes sein -->
+	<target
+		name="project.functions">
+		<!-- place your own tasks here -->
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Prüfen, ob Datei "dumps/magento_final.sql" existiert, dann Property "dump.magento.final.create" setzen -->
+	<target
+		name="check.magento.final.dump">
+		<available
+			property="dump.magento.final.create"
+			file="dumps/magento_final.sql" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Remote Deployment Magento -->
+	<!-- Remote-Properties müssen gesetzt sein -->
+	<!-- Unterverzeichisse ${remote.scp.magento.root}/snapshot und ${remote.scp.magento.root}/www müssen existieren -->
+	<!-- Zielverzeichnisse säubern, lokal installiertes Magento tar/zip, über rsync auf Remote kopieren -->
+	<!-- dort dann entpacken und Rechte anpassen -->
+	<!-- am Ende Target ggfs. "project.functions" ausführen -->
+	<target
+		name="zap.magento.remote"
+		description="">
+		<sshexec
+			command="rm -Rf ${remote.scp.magento.root}/www/*; rm -Rf ${remote.scp.magento.root}/snapshot/*"
+			host="${remote.scp.host}"
+			keyfile="${user.home}/.ssh/id_rsa"
+			passphrase="${remote.scp.passphrase}"
+			username="${remote.scp.username}" />
+		<tar
+			longfile="gnu"
+			destfile="${build.dir}magento_tmp.tar"
+			basedir="${magento.install.path}" />
+		<gzip
+			destfile="${build.dir}magento_compressed.tar"
+			src="${build.dir}magento_tmp.tar" />
+		<echo
+			message="starting file transfer to ${remote.scp.host}" />
+		<exec
+			dir="."
+			executable="rsync"
+			failonerror="true">
+			<arg
+				value="-aog" />
+			<arg
+				value="-e ssh" />
+			<arg
+				value="${build.dir}magento_compressed.tar" />
+			<arg
+				value="${remote.scp.username}@${remote.scp.host}:${remote.scp.magento.root}/snapshot/" />
+		</exec>
+		<echo
+			message="transfer finished." />
+		<echo
+			message="executing stuffs via ${remote.scp.username}@${remote.scp.host}" />
+		<sshexec
+			command="cd ${remote.scp.magento.root}/www/; tar -xzf ${remote.scp.magento.root}/snapshot/magento_compressed.tar"
+			host="${remote.scp.host}"
+			keyfile="${user.home}/.ssh/id_rsa"
+			passphrase="${remote.scp.passphrase}"
+			username="${remote.scp.username}" />
+		<sshexec
+			command="cd ${remote.scp.magento.root}/www/; chmod -R o+w media/; chmod -R o+w var/; chmod o+w app/etc"
+			host="${remote.scp.host}"
+			keyfile="${user.home}/.ssh/id_rsa"
+			passphrase="${remote.scp.passphrase}"
+			username="${remote.scp.username}" />
+		<delete
+			file="${build.dir}magento_tmp.tar" />
+		<if>
+			<equals
+				arg1="${magento.project.functions}"
+				arg2="yes" />
+			<then>
+				<antcall
+					target="project.functions" />
+			</then>
+		</if>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Deployment Magento Datenbank (leer/definierte Werte) -->
+	<!-- Datei ${build.dir}magento_${magento.version}/sql/magento_drop_create.sql parsen und in dumps kopieren -->
+	<!-- über rsync auf Remote kopieren -->
+	<!-- magento_drop_create.sql in dortige Datenbank einspielen und, falls vorhanden, ${dump.file} (magento_final.sql) ebenfalls -->
+	<target
+		name="zap.magento.db.remote">
+		<copy
+			file="${build.dir}magento_${magento.version}/sql/magento_drop_create.sql"
+			toFile="dumps/magento_drop_create.sql"
+			overwrite="yes">
+			<filterset
+				begintoken="@"
+				endtoken="@">
+				<filter
+					token="REMOTE_DB_DATABASE"
+					value="${remote.magento.db.name}" />
+			</filterset>
+		</copy>
+		<exec
+			dir="."
+			executable="rsync"
+			failonerror="true">
+			<arg
+				value="-aog" />
+			<arg
+				value="-e ssh" />
+			<arg
+				value="dumps/" />
+			<arg
+				value="${remote.scp.username}@${remote.scp.host}:${remote.scp.magento.root}/snapshot/" />
+		</exec>
+		<echo
+			message="transfer finished." />
+		<echo
+			message="executing stuffs via ${remote.scp.username}@${remote.scp.host}" />
+		<sshexec
+			command="mysql -u ${remote.magento.db.user} -p${remote.magento.db.passwd} &lt; ${remote.scp.magento.root}/snapshot/magento_drop_create.sql"
+			host="${remote.scp.host}"
+			keyfile="${user.home}/.ssh/id_rsa"
+			passphrase="${remote.scp.passphrase}"
+			username="${remote.scp.username}" />
+		<sshexec
+			command="mysql -u ${remote.magento.db.user} -p${remote.magento.db.passwd} ${remote.magento.db.name} &lt; ${remote.scp.magento.root}/snapshot/${dump.file}"
+			host="${remote.scp.host}"
+			keyfile="${user.home}/.ssh/id_rsa"
+			passphrase="${remote.scp.passphrase}"
+			username="${remote.scp.username}" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Benötigt ein 'mvn clean package' -->
+	<!-- Löscht alle Symlinks -->
+	<!-- Kopiert den Inhalt aus src/main/php/ in das (remote | lokale) Magento, abhängig von ${deploy.type} -->
+	<target
+		name="deploy.to.magento"
+		description="deploy the build artifact of current maven project to magento">
+		<for
+			list="${symlink.create}"
+			param="symlink">
+			<sequential>
+				<exec
+					dir="."
+					executable="rm">
+					<arg
+						value="-rf" />
+					<arg
+						value="${local.magento.root}@{symlink}" />
+				</exec>
+				<echo
+					message="delete symlink: ${local.magento.root}@{symlink}" />
+			</sequential>
+		</for>
+		<if>
+			<equals
+				arg1="${deploy.type}"
+				arg2="local" />
+			<then>
+				<echo
+					message="deploying ${deploy.type} to ${local.magento.root}" />
+				<unzip
+					src="${build.dir}${build.zip.name}"
+					dest="${local.magento.root}" />
+			</then>
+			<else>
+				<echo
+					message="deploying ${deploy.type} to ${remote.scp.host}" />
+				<echo
+					message="..into ${remote.scp.magento.root}" />
+				<echo
+					message="starting file transfer to ${remote.scp.host}" />
+				<exec
+					dir="."
+					executable="rsync"
+					failonerror="true">
+					<arg
+						value="-aog" />
+					<arg
+						value="-e ssh" />
+					<arg
+						value="${build.dir}${build.zip.name}" />
+					<arg
+						value="${remote.scp.username}@${remote.scp.host}:${remote.scp.magento.root}/snapshot/" />
+				</exec>
+				<echo
+					message="transfer finished." />
+				<echo
+					message="executing stuffs via ${remote.scp.username}@${remote.scp.host}" />
+				<!-- deploy via remote ant call <sshexec command="cd ${remote.scp.magento.root} &amp;&amp; ant" host="${remote.scp.host}" keyfile="${user.home}/.ssh/id_rsa" 
+					passphrase="" username="${user.name}" /> -->
+				<!-- quick'n'dirty deploy -->
+				<sshexec
+					command="unzip -qo ${remote.scp.magento.root}/snapshot/${build.zip.name} -d ${remote.scp.magento.root}"
+					host="${remote.scp.host}"
+					keyfile="${user.home}/.ssh/id_rsa"
+					passphrase=""
+					username="${remote.scp.username}" />
+			</else>
+		</if>
+		<echo
+			message="${deploy.type} deploy finished." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Dump der lokale Datenbank in dumps/${dump.file} erstellen -->
+	<target
+		name="dump.db"
+		description="dump current magento database, use -Ddump.file= to specify a dump">
+		<echo
+			message="dumping database: ${magento.db.name} to dumps/${dump.file}" />
+		<mkdir
+			dir="dumps" />
+		<exec
+			executable="mysqldump"
+			output="dumps/${dump.file}">
+			<arg
+				value="--user=${magento.db.user}" />
+			<arg
+				value="--password=${magento.db.passwd}" />
+			<arg
+				value="--host=${magento.db.host}" />
+			<arg
+				value="--port=${magento.db.port}" />
+			<arg
+				value="${magento.db.name}" />
+		</exec>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Datenbank laut Property ${magento.db.name} auf Remote erstellen -->
+	<target
+		name="create.magento.db"
+		description="create fresh magento database from build properties">
+		<echo
+			message="creating database: ${magento.db.name} on ${magento.db.url}" />
+		<exec
+			executable="mysql"
+			inputstring="CREATE DATABASE ${magento.db.name};">
+			<arg
+				value="--user=${magento.db.user}" />
+			<arg
+				value="--password=${magento.db.passwd}" />
+			<arg
+				value="--host=${magento.db.host}" />
+			<arg
+				value="--port=${magento.db.port}" />
+		</exec>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Datenbank laut Property ${magento.db.name} auf Remote löschen -->
+	<target
+		name="drop.magento.db"
+		description="delete magento database">
+		<echo
+			message="dropping database: ${magento.db.name} on ${magento.db.url}" />
+		<exec
+			executable="mysql"
+			inputstring="DROP DATABASE ${magento.db.name};">
+			<arg
+				value="--user=${magento.db.user}" />
+			<arg
+				value="--password=${magento.db.passwd}" />
+			<arg
+				value="--host=${magento.db.host}" />
+			<arg
+				value="--port=${magento.db.port}" />
+		</exec>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- lokales Magento löschen (Verzeichnis ${local.magento.root}) -->
+	<target
+		name="uninstall.magento"
+		description="delete the magento folder">
+		<echo
+			message="delete: ${local.magento.root}" />
+		<delete
+			dir="${local.magento.root}" />
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- generieren der Platzhalter für die Dateien local.xml, use_cache.ser und magento.sql | magento_with_sample_data.sql in Abhängikeit von ${magento.use.sample.data} -->
+	<target
+		name="prepare.magento">
+		<echo
+			message="extract to: ${build.dir}magento_${magento.version}" />
+		<unzip
+			dest="${build.dir}magento_${magento.version}">
+			<fileset
+				refid="maven.magento.source" />
+		</unzip>
+		<mkdir
+			dir="${build.dir}magento_${magento.version}/media/catalog/category" />
+		<mkdir
+			dir="${build.dir}magento_${magento.version}/media/catalog/product" />
+		<echo
+			message="done." />
+		<if>
+			<equals
+				arg1="${magento.encryptionkey}"
+				arg2="" />
+			<then>
+				<echo
+					message="generate: new encryption key" />
+				<exec
+					dir="${build.dir}magento_${magento.version}/sql/"
+					outputproperty="magento.encryptionkey.f"
+					executable="php"
+					failonerror="no"
+					resolveexecutable="yes">
+					<arg
+						value="getKey.php" />
+				</exec>
+				<echo
+					message="-> ${magento.encryptionkey.f}" />
+			</then>
+			<else>
+				<property
+					name="magento.encryptionkey.f"
+					value="${magento.encryptionkey}" />
+				<echo
+					message="use encryption key: ${magento.encryptionkey.f}" />
+			</else>
+		</if>
+		<echo
+			message="done." />
+		<echo
+			message="generate: local.xml" />
+		<copy
+			file="${build.dir}magento_${magento.version}/app/etc/local.xml.template"
+			toFile="${build.dir}magento_${magento.version}/app/etc/local.xml"
+			overwrite="yes">
+			<filterset
+				begintoken="@"
+				endtoken="@">
+				<filter
+					token="DB_HOST"
+					value="${magento.db.url}" />
+				<filter
+					token="DB_DATABASE"
+					value="${magento.db.name}" />
+				<filter
+					token="DB_USERNAME"
+					value="${magento.db.user}" />
+				<filter
+					token="DB_PASSWD"
+					value="${magento.db.passwd}" />
+				<filter
+					token="TABLE_PREFIX"
+					value="${magento.db.table.prefix}" />
+				<filter
+					token="ENCRYPT_KEY"
+					value="${magento.encryptionkey.f}" />
+				<filter
+					token="SESSION_SAVE"
+					value="${magento.session.save}" />
+				<filter
+					token="BACKEND_NAME"
+					value="${magento.backend.frontend.name}" />
+				<filter
+					token="INSTALL_DATE"
+					value="${magento.install.date.f}" />
+			</filterset>
+		</copy>
+		<echo
+			message="done." />
+		<echo
+			message="generate: local.xml.additional" />
+		<copy
+			file="${build.dir}magento_${magento.version}/app/etc/local.xml.additional.template"
+			toFile="${build.dir}magento_${magento.version}/app/etc/local.xml.additional"
+			overwrite="yes">
+			<filterset
+				begintoken="@"
+				endtoken="@">
+				<filter
+					token="SESSIONDATA_LOCATION"
+					value="${magento.sessiondata.location}" />
+				<filter
+					token="SESSIONDATA_SAVEPATH"
+					value="${magento.sessiondata.savepath}" />
+				<filter
+					token="SESSIONCACHE_LIMITER"
+					value="${magento.session.cache.limiter}" />
+				<filter
+					token="SESSIONCACHE_BACKEND"
+					value="${magento.session.cache.backend}" />
+				<filter
+					token="MEMCACHE_HOST"
+					value="${magento.session.cache.memcached.host}" />
+				<filter
+					token="MEMCACHE_PORT"
+					value="${magento.session.cache.memcached.port}" />
+				<filter
+					token="MEMCACHE_PERSISTENT"
+					value="${magento.session.cache.memcached.persistent}" />
+				<filter
+					token="MEMCACHE_COMPR"
+					value="${magento.session.cache.memcached.compression}" />
+				<filter
+					token="MEMCACHE_CACHEDIR"
+					value="${magento.session.cache.memcached.cachedir}" />
+				<filter
+					token="MEMCACHE_DIRLEVEL"
+					value="${magento.session.cache.memcached.hashed.dir.level}" />
+				<filter
+					token="MEMCACHE_DIRUMASK"
+					value="${magento.session.cache.memcached.hashed.dir.umask}" />
+				<filter
+					token="MEMCACHE_FILEPREFIX"
+					value="${magento.session.cache.memcached.file.prefix}" />
+				<filter
+					token="REMOTE_HEADER1"
+					value="${magento.remote.addr.header1}" />
+				<filter
+					token="REMOTE_HEADER2"
+					value="${magento.remote.addr.header2}" />
+			</filterset>
+		</copy>
+		<echo
+			message="done." />
+		<if>
+			<equals
+				arg1="${magento.version.base}"
+				arg2="3" />
+			<then>
+				<echo
+					message="generate: cache settings for 1.3.x" />
+				<copy
+					file="${build.dir}magento_${magento.version}/app/etc/use_cache.ser.template"
+					toFile="${build.dir}magento_${magento.version}/app/etc/use_cache.ser"
+					overwrite="yes">
+					<filterset
+						begintoken="@"
+						endtoken="@">
+						<filter
+							token="CACHE_CONFIG"
+							value="${magento.cache.config}" />
+						<filter
+							token="CACHE_LAYOUT"
+							value="${magento.cache.layout}" />
+						<filter
+							token="CACHE_BLOCK"
+							value="${magento.cache.block}" />
+						<filter
+							token="CACHE_TRANSLATE"
+							value="${magento.cache.translate}" />
+						<filter
+							token="CACHE_COLLECTIONS"
+							value="${magento.cache.collections}" />
+						<filter
+							token="CACHE_EAV"
+							value="${magento.cache.eav}" />
+						<filter
+							token="CACHE_API"
+							value="${magento.cache.api}" />
+					</filterset>
+				</copy>
+				<echo
+					message="done." />
+			</then>
+		</if>
+		<if>
+			<equals
+				arg1="${magento.use.sample.data}"
+				arg2="yes" />
+			<then>
+				<echo
+					message="copy: sample data" />
+				<copy
+					todir="${build.dir}magento_${magento.version}/"
+					includeemptydirs="yes">
+					<fileset
+						dir="${build.dir}magento_${magento.version}/sample_data" />
+				</copy>
+				<echo
+					message="done." />
+			</then>
+		</if>
+		<condition
+			property="magento.execute.expose"
+			value="1">
+			<and>
+				<equals
+					arg1="${magento.version.base}"
+					arg2="4" />
+				<equals
+					arg1="${magento.expose.exceptions}"
+					arg2="yes" />
+			</and>
+		</condition>
+		<if>
+			<isset
+				property="magento.execute.expose" />
+			<then>
+				<echo
+					message="enable: exception printing" />
+				<move
+					file="${build.dir}magento_${magento.version}/errors/local.xml.sample"
+					tofile="${build.dir}magento_${magento.version}/errors/local.xml" />
+				<echo
+					message="done." />
+			</then>
+		</if>
+	</target>
+
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Script-Qualität, Code-Bewertung, kurze Doku (Methodensyntax) erstellen -->
+
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- phpdoc: Documentor -->
+	<target
+		name="phpdoc">
+		<exec
+			dir="${basedir}"
+			executable="phpdoc">
+			<arg
+				line="-t build/api -d src/main/php" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- phpmd: Mess Detection -->
+	<target
+		name="phpmd">
+		<exec
+			executable="phpmd">
+			<arg
+				line="src/main/php xml codesize,unusedcode,naming --reportfile ${basedir}/build/logs/pmd.xml" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- phpcpd: Copy and Paste Detection -->
+	<target
+		name="phpcpd">
+		<exec
+			dir="${basedir}"
+			executable="phpcpd">
+			<arg
+				line="--log-pmd build/logs/cpd.xml src/main/php" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- pDepend: Static Code Analysis -->
+	<target
+		name="pdepend">
+		<exec
+			dir="${basedir}"
+			executable="pdepend">
+			<arg
+				line="--jdepend-xml=build/logs/jdepend.xml svn/core" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- phpcs: Code Sniffer -->
+	<target
+		name="phpcs">
+		<exec
+			dir="${basedir}"
+			executable="phpcs"
+			output="${basedir}/build/logs/checkstyle.xml">
+			<arg
+				line="--standard=ZEND --ignore=svn/core/public/* --report=checkstyle src/main/php/app" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- phpUnit: Unit Test Framework for PHP -->
+	<target
+		name="phpunit">
+		<exec
+			dir="${basedir}"
+			executable="phpunit"
+			failonerror="true">
+			<arg
+				line="--configuration hudson-phpunit.xml" />
+		</exec>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- ALTE PHP SERVICES START -->
+
+	<target
+		name="php.code.coverage">
+		<exec
+			dir="${basedir}"
+			executable="phpunit"
+			failonerror="true">
+			<arg
+				line="--coverage-html src/main/php" />
+		</exec>
+	</target>
+
+	<target
+		name="php.doc">
+		<exec
+			dir="${basedir}"
+			executable="phpdoc"
+			failonerror="true">
+			<arg
+				line="-t docs/doxygen --directory src/main/php -ti 'Docs' --parseprivate on --undocumentedelements on --output HTML:Smarty:PHP" />
+		</exec>
+	</target>
+
+	<target
+		name="php.cpd">
+		<exec
+			dir="${basedir}"
+			executable="phpcpd"
+			failonerror="true">
+			<arg
+				line="--log-pmd=docs/developer/logs/pmd.xml src/main/php" />
+		</exec>
+	</target>
+
+	<target
+		name="php.md">
+		<exec
+			dir="${basedir}"
+			executable="phpmd"
+			failonerror="false">
+			<arg
+				line=". xml codesize --reportfile ${basedir}/docs/developer/logs/pmd.xml" />
+		</exec>
+	</target>
+
+	<target
+		name="php.code.depend">
+		<exec
+			dir="${basedir}"
+			executable="pdepend"
+			failonerror="true">
+			<arg
+				line="--jdepend-xml=docs/developer/logs/jdepend.xml src/main/php" />
+		</exec>
+	</target>
+
+	<target
+		name="php.code.sniffer"
+		depends="clean.qa,prepare.qa">
+		<exec
+			dir="${basedir}"
+			executable="phpcs"
+			output="${basedir}/docs/developer/logs/checkstyle.xml"
+			failonerror="false">
+			<arg
+				line="--report=checkstyle --standard=Zend ${basedir}/src/main/php" />
+		</exec>
+	</target>
+
+	<target
+		name="clean.qa">
+		<delete
+			dir="${basedir}/docs/developer/logs" />
+		<echo
+			message="done." />
+	</target>
+
+	<target
+		name="prepare.qa">
+		<mkdir
+			dir="${basedir}/docs/developer/logs" />
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ALTE PHP SERVICES END -->
+	<!-- ************************************************************************************************************************************ -->
+
+
+	<!-- ************************************************************************************************************************************ -->
+
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Verzeichnis, in dem das lokale Magento gepackt (tar/zip) wird, leeren -->
+	<target
+		name="clean">
+		<delete
+			includeemptydirs="true"
+			failonerror="false">
+			<fileset
+				dir="target" />
+		</delete>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- _todo -->
+	<target
+		name="prepare">
+		<delete
+			dir="${basedir}/build" />
+		<mkdir
+			dir="${basedir}/build/api" />
+		<mkdir
+			dir="${basedir}/build/code-browser" />
+		<mkdir
+			dir="${basedir}/build/coverage" />
+		<mkdir
+			dir="${basedir}/build/logs" />
+		<mkdir
+			dir="${basedir}/build/artifacts" />
+		<touch
+			file="${basedir}/build/logs/cpd.xml" />
+		<touch
+			file="${basedir}/build/logs/pmd.xml" />
+		<touch
+			file="${basedir}/build/logs/checkstyle.xml" />
+		<touch
+			file="${basedir}/build/logs/clover.xml" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- _todo -->
+	<target
+		name="create.symlinks"
+		description="create symlinks">
+		<for
+			list="${symlink.create}"
+			param="symlink">
+			<sequential>
+				<exec
+					dir="."
+					executable="rm">
+					<arg
+						value="-rf" />
+					<arg
+						value="${local.magento.root}@{symlink}" />
+				</exec>
+			</sequential>
+		</for>
+		<for
+			list="${symlink.create}"
+			param="symlink">
+			<sequential>
+				<echo
+					message="set symlink: @{symlink}" />
+				<exec
+					dir="."
+					executable="ln">
+					<arg
+						value="-s" />
+					<arg
+						value="${basedir}/src/main/php/@{symlink}/" />
+					<arg
+						value="${local.magento.root}@{symlink}" />
+				</exec>
+			</sequential>
+		</for>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- vorgeschaltetes Prüfen, ob bereits ein SQL-Dump existiert, falls nicht, wird eines erstellt -->
+	<target
+		name="dump.magento.final"
+		depends="check.magento.final.dump"
+		unless="dump.magento.final.create">
+		<antcall
+			target="dump.db" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- php-Services starten -->
+	<target
+		name="php.services"
+		depends="prepare,phpdoc,phpmd,phpcpd,pdepend,phpcs,phpunit">
+		<echo
+			message="PHP services done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- _todo -->
+	<target
+		name="zap.magento"
+		depends="hosts.on,drop.magento.db,uninstall.magento,create.magento.db,install.magento,dump.magento.final"
+		description="delete magento folder, drop database and install fresh magento/db">
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- _todo -->
+	<target
+		name="zap.magento.db"
+		depends="drop.magento.db,create.magento.db,import.magento.db.schema"
+		description="drop and create db, import schema">
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- _todo -->
+	<target
+		name="import.magento.db.schema"
+		depends="clean,prepare.magento"
+		description="import magento database schema, expects empty database">
+		<echo
+			message="generate: admin passwd hash" />
+		<exec
+			dir="${build.dir}magento_${magento.version}/sql/"
+			outputproperty="magento.admin.passwd.f"
+			executable="php"
+			failonerror="no"
+			resolveexecutable="yes">
+			<arg
+				value="getHash.php" />
+			<arg
+				value="${magento.admin.passwd}" />
+		</exec>
+		<echo
+			message="->
+			${magento.admin.passwd.f}" />
+		<echo
+			message="done." />
+
+		<echo
+			message="process: ${build.dir}magento_${magento.version}/sql/${magento.db.schema.file}" />
+		<copy
+			file="${build.dir}magento_${magento.version}/sql/${magento.db.schema.file}"
+			toFile="${build.dir}magento_${magento.version}/sql/${magento.db.schema.file}.filtered"
+			overwrite="yes">
+			<filterset
+				begintoken="@"
+				endtoken="@">
+				<filter
+					token="BASE_URL"
+					value="${magento.url.base.f}" />
+				<filter
+					token="BASE_URL_SECURE"
+					value="${magento.url.base.https.f}" />
+				<filter
+					token="HTTPS_BACKEND"
+					value="${magento.use.https.backend}" />
+				<filter
+					token="HTTPS_FRONTEND"
+					value="${magento.use.https.frontend}" />
+				<filter
+					token="ADMIN_USERNAME"
+					value="${magento.admin.username}" />
+				<filter
+					token="ADMIN_PASSWD"
+					value="${magento.admin.passwd.f}" />
+				<filter
+					token="ADMIN_NAME_FIRST"
+					value="${magento.admin.name.first}" />
+				<filter
+					token="ADMIN_NAME_LAST"
+					value="${magento.admin.name.last}" />
+				<filter
+					token="ADMIN_EMAIL"
+					value="${magento.admin.email}" />
+				<filter
+					token="INSTALL_DATESQL"
+					value="${magento.install.date.sql.f}" />
+				<filter
+					token="DEF_TIMEZONE"
+					value="${magento.timezone}" />
+				<filter
+					token="DEF_CURRENCY"
+					value="${magento.currency}" />
+				<filter
+					token="DEF_LOCALE"
+					value="${magento.locale}" />
+				<filter
+					token="DEF_THEME"
+					value="${magento.theme}" />
+				<filter
+					token="SEO_REWRITES"
+					value="${magento.seo.use.rewrites}" />
+				<!-- only magento 1.4.x -->
+				<filter
+					token="CACHE_CONFIG"
+					value="${magento.cache.config}" />
+				<filter
+					token="CACHE_LAYOUT"
+					value="${magento.cache.layout}" />
+				<filter
+					token="CACHE_BLOCK"
+					value="${magento.cache.block}" />
+				<filter
+					token="CACHE_TRANSLATE"
+					value="${magento.cache.translate}" />
+				<filter
+					token="CACHE_COLLECTIONS"
+					value="${magento.cache.collections}" />
+				<filter
+					token="CACHE_EAV"
+					value="${magento.cache.eav}" />
+				<filter
+					token="CACHE_API"
+					value="${magento.cache.api}" />
+			</filterset>
+		</copy>
+		<echo
+			message="done." />
+		<echo
+			message="import magento schema to db: ${magento.db.name} on ${magento.db.url}" />
+		<echo
+			message="source: ${build.dir}magento_${magento.version}/sql/${magento.db.schema.file}.filtered" />
+		<exec
+			executable="mysql"
+			input="${build.dir}magento_${magento.version}/sql/${magento.db.schema.file}.filtered">
+			<arg
+				value="--user=${magento.db.user}" />
+			<arg
+				value="--password=${magento.db.passwd}" />
+			<arg
+				value="--host=${magento.db.host}" />
+			<arg
+				value="--port=${magento.db.port}" />
+			<arg
+				value="${magento.db.name}" />
+		</exec>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- lokale Magento-Datenbank aus SQL-Dump erstellen -->
+	<!-- mit "-Ddump.file=*DATEI*" wird Datei angegeben, Datei muss im Ordner dumps/ liegen -->
+	<target
+		name="restore.db"
+		depends="drop.magento.db,create.magento.db"
+		description="create magento database from dump, use -Ddump.file=, place dump file in dumps/">
+		<echo
+			message="creating database: ${magento.db.name} from dumps/${dump.file}" />
+		<exec
+			executable="mysql"
+			input="dumps/${dump.file}">
+			<arg
+				value="--user=${magento.db.user}" />
+			<arg
+				value="--password=${magento.db.passwd}" />
+			<arg
+				value="--host=${magento.db.host}" />
+			<arg
+				value="--port=${magento.db.port}" />
+			<arg
+				value="${magento.db.name}" />
+		</exec>
+		<echo
+			message="done." />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- gewählte Magento-Version (Property ${magento.version}) lokal installieren -->
+	<target
+		name="install.magento"
+		depends="clean,import.magento.db.schema"
+		description="import schema then install magento, expects empty database">
+		<echo
+			message="install to: ${magento.install.path}" />
+		<delete
+			dir="${magento.install.path}"
+			failonerror="no"
+			quiet="yes"
+			followsymlinks="no" />
+		<copy
+			todir="${magento.install.path}"
+			includeemptydirs="yes">
+			<fileset
+				dir="${build.dir}magento_${magento.version}">
+				<exclude
+					name="sql/**" />
+				<exclude
+					name="fixes/**" />
+				<exclude
+					name="sample_data/**" />
+				<exclude
+					name="app/etc/*.template" />
+				<exclude
+					name="META-INF/**" />
+			</fileset>
+		</copy>
+		<echo
+			message="done." />
+
+		<!-- **** SETUP PROJECT PERMISSIONS START **** -->
+		<if>
+			<equals
+				arg1="${deploy.permission.set}"
+				arg2="1" />
+			<then>
+				<echo
+					message="set project permissions.." />
+
+				<echo
+					message="${deploy.permission.dirs} on all directories" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="${deploy.permission.dirs}">
+					<dirset
+						dir="${magento.install.path}">
+						<include
+							name="**/" />
+					</dirset>
+				</chmod>
+
+				<echo
+					message="o+w on app/etc, /media, /var" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="o+w">
+					<dirset
+						dir="${magento.install.path}app/etc">
+						<include
+							name="**/" />
+					</dirset>
+					<dirset
+						dir="${magento.install.path}media">
+						<include
+							name="**/" />
+					</dirset>
+					<dirset
+						dir="${magento.install.path}var">
+						<include
+							name="**/" />
+					</dirset>
+				</chmod>
+
+				<echo
+					message="${deploy.permission.files} on all files" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="${deploy.permission.files}">
+					<fileset
+						dir="${magento.install.path}">
+						<include
+							name="**/*.*" />
+					</fileset>
+				</chmod>
+			</then>
+		</if>
+		<!-- **** SETUP PROJECT PERMISSIONS END **** -->
+
+		<if>
+			<equals
+				arg1="${magento.pear.enable}"
+				arg2="yes" />
+			<then>
+				<!-- ******************* PEAR START ********************* -->
+
+				<!-- **** PERMISSIONS START **** -->
+				<echo
+					message="set pear permissions.." />
+				<echo
+					message="550 on pear" />
+
+				<chmod
+					file="${magento.install.path}pear"
+					perm="550" />
+
+				<echo
+					message="o+w on /var/.htaccess" />
+
+				<touch
+					file="${magento.install.path}var/.htaccess" />
+				<chmod
+					file="${magento.install.path}var/.htaccess"
+					perm="o+w" />
+
+				<echo
+					message="done." />
+				<!-- **** PERMISSIONS END **** -->
+
+				<!-- **** SETUP START **** -->
+				<echo
+					message="setup: pear" />
+
+				<exec
+					executable="pear"
+					dir="${magento.install.path}"
+					resolveexecutable="true">
+					<arg
+						value="mage-setup" />
+				</exec>
+
+				<echo
+					message="set extension stability to: ${magento.extensions.prefered.stability}" />
+				<exec
+					executable="pear"
+					dir="${magento.install.path}"
+					resolveexecutable="true">
+					<arg
+						value="config-set" />
+					<arg
+						value="preferred_state" />
+					<arg
+						value="${magento.extensions.prefered.stability}" />
+				</exec>
+				<echo
+					message="done." />
+				<!-- **** SETUP END **** -->
+
+				<!-- **** INSTALL CORE EXTENSIONS START **** -->
+				<for
+					list="${magento.extensions.core}"
+					param="extension">
+					<sequential>
+						<echo
+							message="installing: @{extension}" />
+						<exec
+							executable="pear"
+							dir="${magento.install.path}"
+							resolveexecutable="true">
+							<arg
+								value="install" />
+							<arg
+								value="magento-core/@{extension}" />
+						</exec>
+					</sequential>
+				</for>
+				<!-- **** INSTALL CORE EXTENSIONS END **** -->
+
+				<!-- **** INSTALL COMMUNITY EXTENSIONS **** -->
+				<for
+					list="${magento.extensions.community}"
+					param="extension">
+					<sequential>
+						<echo
+							message="installing: @{extension}" />
+						<exec
+							executable="pear"
+							dir="${magento.install.path}"
+							resolveexecutable="true">
+							<arg
+								value="install" />
+							<arg
+								value="magento-community/@{extension}" />
+						</exec>
+					</sequential>
+				</for>
+				<!-- **** INSTALL COMMUNITY EXTENSIONS END **** -->
+
+				<!-- ******************* PEAR END ********************* -->
+			</then>
+			<elseif>
+				<equals
+					arg1="${magento.mage.enable}"
+					arg2="yes" />
+				<then>
+					<!-- ******************* MAGE START ********************* -->
+
+					<!-- **** PERMISSIONS START **** -->
+					<echo
+						message="set mage permissions.." />
+					<echo
+						message="550 on mage" />
+
+					<chmod
+						file="${magento.install.path}mage"
+						perm="550" />
+
+					<echo
+						message="o+w on /var/.htaccess" />
+
+					<touch
+						file="${magento.install.path}var/.htaccess" />
+					<chmod
+						file="${magento.install.path}var/.htaccess"
+						perm="o+w" />
+
+					<echo
+						message="done." />
+					<!-- **** PERMISSIONS END **** -->
+
+					<!-- **** SETUP START **** -->
+					<echo
+						message="setup: mage" />
+
+					<exec
+						executable="mage"
+						dir="${magento.install.path}"
+						resolveexecutable="true">
+						<arg
+							value="mage-setup" />
+					</exec>
+
+					<echo
+						message="set extension stability to: ${magento.extensions.prefered.stability}" />
+					<exec
+						executable="mage"
+						dir="${magento.install.path}"
+						resolveexecutable="true">
+						<arg
+							value="config-set" />
+						<arg
+							value="preferred_state" />
+						<arg
+							value="${magento.extensions.prefered.stability}" />
+					</exec>
+					<echo
+						message="done." />
+					<!-- **** SETUP END **** -->
+
+					<!-- **** INSTALL CORE EXTENSIONS START **** -->
+					<for
+						list="${magento.extensions.core}"
+						param="extension">
+						<sequential>
+							<echo
+								message="installing: @{extension}" />
+							<exec
+								executable="mage"
+								dir="${magento.install.path}"
+								resolveexecutable="true">
+								<arg
+									value="install" />
+								<arg
+									value="core" />
+								<arg
+									value="@{extension}" />
+							</exec>
+						</sequential>
+					</for>
+					<!-- **** INSTALL CORE EXTENSIONS END **** -->
+
+					<!-- **** INSTALL COMMUNITY EXTENSIONS **** -->
+					<for
+						list="${magento.extensions.community}"
+						param="extension">
+						<sequential>
+							<echo
+								message="installing: @{extension}" />
+							<exec
+								executable="mage"
+								dir="${magento.install.path}"
+								resolveexecutable="true">
+								<arg
+									value="install" />
+								<arg
+									value="community" />
+								<arg
+									value="@{extension}" />
+							</exec>
+						</sequential>
+					</for>
+					<!-- **** INSTALL COMMUNITY EXTENSIONS END **** -->
+
+					<!-- ******************* MAGE END ********************* -->
+				</then>
+			</elseif>
+		</if>
+
+		<!-- **** INSTALL LOCAL EXTENSIONS START **** -->
+		<for
+			list="${magento.extensions.other}"
+			param="artefact">
+			<sequential>
+				<echo
+					message="deploying: @{artefact}" />
+				<unzip
+					src="extensions/@{artefact}"
+					dest="${magento.install.path}" />
+			</sequential>
+		</for>
+		<!-- **** INSTALL LOCAL EXTENSIONS END **** -->
+
+		<!-- **** ADD FIXES START **** -->
+		<if>
+			<equals
+				arg1="${magento.add.fixes}"
+				arg2="yes" />
+			<then>
+				<echo
+					message="Add fixes" />
+				<copy
+					todir="${magento.install.path}"
+					overwrite="yes"
+					includeemptydirs="yes">
+					<fileset
+						dir="${build.dir}magento_${magento.version}/fixes">
+						<exclude
+							name="*.txt" />
+					</fileset>
+				</copy>
+				<delete
+					file="${magento.install.path}/app/code/local/TechDivision/Chart/Block/Adminhtml/Tag.php" />
+				<delete
+					file="${magento.install.path}/var/package/Mxperts_NoRegion-0.1.6.xml" />
+			</then>
+		</if>
+		<!-- **** ADD FIXES END **** -->
+
+		<!-- **** SETUP PROJECT PERMISSIONS START **** -->
+		<if>
+			<equals
+				arg1="${deploy.permission.set}"
+				arg2="1" />
+			<then>
+				<echo
+					message="set project permissions.." />
+
+				<echo
+					message="${deploy.permission.dirs} on all directories" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="${deploy.permission.dirs}">
+					<dirset
+						dir="${magento.install.path}">
+						<include
+							name="**/" />
+					</dirset>
+				</chmod>
+
+				<echo
+					message="o+w on app/etc, /media, /var" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="o+w">
+					<dirset
+						dir="${magento.install.path}app/etc">
+						<include
+							name="**/" />
+					</dirset>
+					<dirset
+						dir="${magento.install.path}media">
+						<include
+							name="**/" />
+					</dirset>
+					<dirset
+						dir="${magento.install.path}var">
+						<include
+							name="**/" />
+					</dirset>
+				</chmod>
+
+				<echo
+					message="${deploy.permission.files} on all files" />
+				<chmod
+					maxparallel="${deploy.permission.maxparallel}"
+					perm="${deploy.permission.files}">
+					<fileset
+						dir="${magento.install.path}">
+						<include
+							name="**/*.*" />
+					</fileset>
+				</chmod>
+			</then>
+		</if>
+		<!-- **** SETUP PROJECT PERMISSIONS END **** -->
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Prüfen, ob Backup-Datei der hosts existiert -->
+	<target
+		name="hosts.backup.check">
+		<!-- check if backup-file exists -->
+		<available
+			property="check.hosts.backup.exists"
+			file="${local.install.hosts.backup.directory}/${local.install.hosts.file.backup}" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Prüfen, ob neue hosts-Datei im Projekt vorhanden -->
+	<target
+		name="hosts.new.check">
+		<!-- check if new hosts-file in project exists -->
+		<available
+			property="check.hosts.new.available"
+			file="${local.install.hosts.file.new}" />
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- eventuell vorhandes Backup der hosts zurückspielen -->
+	<target
+		name="hosts.off"
+		description="restore hosts backup"
+		depends="hosts.backup.check">
+		<!-- deploy to local context only -->
+		<if>
+			<equals
+				arg1="${local.install.hosts.enabled}"
+				arg2="yes" />
+			<then>
+				<!-- restore if backup-file exists -->
+				<if>
+					<isset
+						property="check.hosts.backup.exists" />
+					<then>
+						<echo
+							message="restoring hosts-file to ${local.install.hosts.directory}/ ..." />
+						<exec
+							executable="sudo"
+							failonerror="true">
+							<arg
+								value="mv" />
+							<arg
+								value="-f" />
+							<arg
+								value="${local.install.hosts.backup.directory}/${local.install.hosts.file.backup}" />
+							<arg
+								value="${local.install.hosts.directory}/${local.install.hosts.file}" />
+						</exec>
+						<echo
+							message="done." />
+					</then>
+					<else>
+						<echo
+							message="hosts backup not found." />
+					</else>
+				</if>
+			</then>
+		</if>
+	</target>
+
+	<!-- ************************************************************************************************************************************ -->
+	<!-- Backup der hosts anlegen, aber nur, falls moch nicht vorhanden -->
+	<!-- dann, wenn neue hosts im Projekt definiert, diese installieren/aktivieren -->
+	<target
+		name="hosts.on"
+		description="backup hosts and install new one as defined in project"
+		depends="hosts.backup.check,hosts.new.check">
+		<!-- deploy to local context only -->
+		<if>
+			<equals
+				arg1="${local.install.hosts.enabled}"
+				arg2="yes" />
+			<then>
+				<!-- if none backup-file exists, do backup -->
+				<echo
+					message="creating backup of ${local.install.hosts.directory}/${local.install.hosts.file} to ~/${local.install.hosts.file.backup} ..." />
+				<if>
+					<not>
+						<isset
+							property="check.hosts.backup.exists" />
+					</not>
+					<then>
+						<exec
+							executable="cp"
+							failonerror="true">
+							<arg
+								value="-f" />
+							<arg
+								value="${local.install.hosts.directory}/${local.install.hosts.file}" />
+							<arg
+								value="${local.install.hosts.backup.directory}/${local.install.hosts.file.backup}" />
+						</exec>
+						<echo
+							message="done." />
+					</then>
+					<else>
+						<echo
+							message="skiped, backup already done." />
+					</else>
+				</if>
+				<!-- if new hosts-file exists in project, copy via sudo to dir -->
+				<if>
+					<isset
+						property="check.hosts.new.available" />
+					<then>
+						<echo
+							message="[sudo] copy ${local.install.hosts.file.new} to ${local.install.hosts.directory}/ ... (password required!)" />
+						<exec
+							executable="sudo"
+							failonerror="true">
+							<arg
+								value="cp" />
+							<arg
+								value="-f" />
+							<arg
+								value="${local.install.hosts.file.new}" />
+							<arg
+								value="${local.install.hosts.directory}/" />
+						</exec>
+						<echo
+							message="done." />
+						<!-- rename new file in target dir to name needed -->
+						<echo
+							message="activate new hosts file ..." />
+						<exec
+							executable="sudo"
+							failonerror="true">
+							<arg
+								value="mv" />
+							<arg
+								value="-f" />
+							<arg
+								value="${local.install.hosts.directory}/${local.install.hosts.file.new}" />
+							<arg
+								value="${local.install.hosts.directory}/${local.install.hosts.file}" />
+						</exec>
+						<echo
+							message="done." />
+					</then>
+					<else>
+						<echo
+							message="skiped, new hosts file not found." />
+					</else>
+				</if>
+			</then>
+		</if>
+	</target>
+
+</project>

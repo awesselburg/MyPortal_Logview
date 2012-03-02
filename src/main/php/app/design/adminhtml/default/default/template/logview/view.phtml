@@ -1,0 +1,106 @@
+<?php
+
+if ($this->isActive()) {
+    $_logviewSession = Mage::getSingleton('myportal_logview/session');
+    ?>
+<script type="text/javascript">
+    //<![CDATA[
+
+    var enabled = <?php echo $_logviewSession->getEnabled() ? 'true' : 'false'; ?>;
+    var auto_reload = <?php echo $this->getAutoReloadEnabled() == '1' ? 'true' : 'false'; ?>;
+    var logtimer = false;
+
+    function refreshLog() {
+        var logRequest = new Ajax.Request(
+            '<?php echo $this->getLogUrl(); ?>',
+            {
+                method:'post',
+                onComplete:function (transport) {
+
+                    if (transport.status == 200) {
+                        var jsonResponse = transport.responseJSON;
+                        if (jsonResponse.update_exceptions == 'true'
+                            || $('logview_tab_exceptions_content').innerHTML.length == 3) {
+                            $('logview_tab_exceptions_content').innerHTML = jsonResponse.exceptions;
+                        }
+                        if (jsonResponse.update_systems == 'true'
+                            || $('logview_tab_systems_content').innerHTML.length == 6) {
+                            $('logview_tab_systems_content').innerHTML = jsonResponse.systems;
+                        }
+
+                    }
+
+                }
+            });
+    }
+
+    function updateLogView() {
+        var logRequest = new Ajax.Request(
+            '<?php echo $this->getUpdateUrl(); ?>',
+            {
+                method:'post',
+                parameters:{
+                    positiontop:logwin.getLocation().top,
+                    positionleft:logwin.getLocation().left,
+                    logenabled:enabled,
+                    autoreload:auto_reload
+                },
+                onComplete:function (transport) {
+                    if (enabled == true) {
+                        refreshLog();
+                    }
+                }
+            }
+        );
+    }
+
+    function updateAutoReload(value) {
+        auto_reload = value;
+        autoReload();
+        updateLogView();
+    }
+
+    logwin = new Window({className:"magento", title:"<?php echo $this->__('LogView') ?>", recenterAuto:false, maximizable:true, minimizable:false, resizable:true, minWidth:500, minHeight:500, destroyOnClose:true});
+    logwin.getContent().innerHTML = <?php echo $this->getChildHtml('myportal.log.tabs'); ?>;
+    logwin.showCenter(false,<?php echo $_logviewSession->getTop(); ?>,<?php echo $_logviewSession->getLeft(); ?>);
+
+
+    observer = {
+        onEndMove:function (eventName, win) {
+            if (win == logwin) {
+                updateLogView();
+            }
+        },
+        onClose:function (eventName, win) {
+            if (win == logwin) {
+                if (logtimer) {
+                    clearInterval(logtimer);
+                }
+                enabled = false;
+                updateLogView();
+            }
+        }
+    }
+
+    function autoReload() {
+        if (auto_reload) {
+            logtimer = setInterval(function () {
+                refreshLog();
+            }, <?php echo $this->getReloadTime(); ?>);
+        } else {
+            if (logtimer) {
+                clearInterval(logtimer);
+            }
+        }
+    }
+
+    Windows.addObserver(observer);
+    document.observe("dom:loaded", function () {
+        logview_tabJsTabs = new varienTabs('logview_tab', 'logview_tab_content', 'logview_tab_systems', []);
+        autoReload();
+        refreshLog();
+    });
+
+    //]]>
+</script>
+<?php } ?>

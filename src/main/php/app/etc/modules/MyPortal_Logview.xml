@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <MyPortal_Logview>
+            <active>true</active>
+            <codePool>community</codePool>
+        </MyPortal_Logview>
+    </modules>
+</config> 
