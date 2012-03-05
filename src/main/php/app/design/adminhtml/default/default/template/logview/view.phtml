@@ -20,11 +20,11 @@ if ($this->isActive()) {
                     if (transport.status == 200) {
                         var jsonResponse = transport.responseJSON;
                         if (jsonResponse.update_exceptions == 'true'
-                            || $('logview_tab_exceptions_content').innerHTML.length == 3) {
+                            || trim($('logview_tab_exceptions_content').innerHTML).length == 0) {
                             $('logview_tab_exceptions_content').innerHTML = jsonResponse.exceptions;
                         }
                         if (jsonResponse.update_systems == 'true'
-                            || $('logview_tab_systems_content').innerHTML.length == 6) {
+                            || trim($('logview_tab_systems_content').innerHTML).length == 0) {
                             $('logview_tab_systems_content').innerHTML = jsonResponse.systems;
                         }
 
@@ -92,6 +92,10 @@ if ($this->isActive()) {
                 clearInterval(logtimer);
             }
         }
+    }
+
+    function trim (string) {
+      return string.replace (/^\s+/, '').replace (/\s+$/, '');
     }
 
     Windows.addObserver(observer);
