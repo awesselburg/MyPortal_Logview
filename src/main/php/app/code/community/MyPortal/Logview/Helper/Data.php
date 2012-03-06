@@ -60,7 +60,6 @@ class MyPortal_Logview_Helper_Data
      */
     public function decorateItems($data)
     {
-
         $items = array();
         foreach (explode("\n", $data) as $item) {
 
@@ -71,11 +70,10 @@ class MyPortal_Logview_Helper_Data
 
                 $fullLengh = strlen($item);
                 $infoString = substr($item, 25, $fullLengh);
-                $logTypeItems = explode(' ', $infoString);
 
                 array_push($items,
 
-                    sprintf('<div class="item"><span class="datetime">%s:%s:%s:%s</span>%s</div>',
+                    sprintf('<pre class="item"><code><span class="datetime">%s:%s:%s:%s</span>%s</code></pre>',
                         $dateTimeItems[0],
                         $dateTimeItems[1],
                         $dateTimeItems[2],
@@ -84,7 +82,7 @@ class MyPortal_Logview_Helper_Data
                     )
                 );
             } else {
-                array_push($items, '<div class="item">' . $item . '</div>');
+                array_push($items, '<pre class="item"><code>' . $item . '</pre></code>');
             }
         }
         return implode('', $items);

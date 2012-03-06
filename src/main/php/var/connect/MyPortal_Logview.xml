@@ -9,9 +9,9 @@
    <description>Displays the System and Exception Log Files an the Magento Backend.</description>
    <license>OSL v3.0</license>
    <license_uri/>
-   <version>0.0.1</version>
+   <version>0.0.2</version>
    <stability>beta</stability>
-   <notes>Beta Version 0.0.1</notes>
+   <notes>Beta Version 0.0.2</notes>
    <authors>
       <name>
          <name>Alexander Wesselburg</name>

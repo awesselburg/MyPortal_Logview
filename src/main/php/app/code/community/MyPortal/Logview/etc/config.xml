@@ -1,7 +1,7 @@
 <config>
     <modules>
         <MyPortal_Logview>
-            <version>0.1.0</version>
+            <version>0.1.2</version>
         </MyPortal_Logview>
     </modules>
     <frontend>
